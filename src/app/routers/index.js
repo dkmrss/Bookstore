@@ -9,6 +9,7 @@ const BookInfoRouter = require("./BookInfoRouter");
 const CommentRouter = require("./UserCommentRouter");
 const OrderRouter = require("./OrderRouter");
 const ProductsRouter = require("./ProductsRouter");
+const SearchKeyRouter = require("./SearchKeyRouter");
 const router = express.Router();
 
 // Route cho các ví dụ
@@ -42,5 +43,9 @@ router.use("/user-comment", CommentRouter);
 
 // Route cho đơn hàng
 router.use("/orders", OrderRouter);
+
+// Router liên quan từ khóa tìm kiếm
+router.use("/search", SearchKeyRouter)
+
 
 module.exports = router;

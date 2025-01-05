@@ -352,6 +352,43 @@ router.put("/update/:id", (req, res) => {
 
 /**
  * @swagger
+ * /orders/cancel/{id}:
+ *   put:
+ *     summary: Hủy đơn hàng
+ *     tags: [Orders]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: ID của đơn hàng cần hủy
+ *     responses:
+ *       200:
+ *         description: Đơn hàng đã được hủy thành công
+ *       404:
+ *         description: Không tìm thấy đơn hàng
+ *       500:
+ *         description: Lỗi máy chủ
+ */
+router.put("/cancel/:id", (req, res) => {
+  const orderId = parseInt(req.params.id);
+
+  if (isNaN(orderId)) {
+    return res.status(400).json({
+      success: false,
+      message: "ID đơn hàng không hợp lệ",
+      error: "Invalid order ID",
+    });
+  }
+
+  OrderModel.cancelOrder(orderId, (result) => {
+    res.status(result.success ? 200 : 500).json(result);
+  });
+});
+
+/**
+ * @swagger
  * /orders/delete/{id}:
  *   delete:
  *     summary: Xóa một đơn hàng

@@ -148,7 +148,19 @@ class UserModel {
   }
 
   static async delete(id, callback) {
+    if (id === 1 || id === "1") {
+      return callback({
+        success: true,
+        message: "Không thể xóa người dùng đặc biệt",
+        error: "",
+      });
+    }
     try {
+      // Xóa chi tiết đơn hàng
+      await this.executeQuery("DELETE FROM order_details WHERE order_id IN (SELECT id FROM orders WHERE customer_id = ?)", [id]);
+      // Xóa đơn hàng
+      await this.executeQuery("DELETE FROM orders WHERE customer_id = ?", [id]);
+      // Xóa người dùng
       const result = await this.executeQuery("DELETE FROM users WHERE id = ?", [id]);
       if (result.affectedRows === 0) {
         return callback({
@@ -172,6 +184,74 @@ class UserModel {
         error: err.message,
       });
     }
+  }
+
+  static async toggleStatus(id, callback) {
+    if (id === 1 || id === "1") {
+      return callback({
+        success: true,
+        message: "Không thể thay đổi trạng thái người dùng đặc biệt",
+        error: "",
+      });
+    }
+  
+    try {
+      const result = await this.executeQuery("UPDATE users SET status = NOT status WHERE id = ?", [id]);
+      if (result.affectedRows === 0) {
+        return callback({
+          success: false,
+          message: "Không tìm thấy người dùng để cập nhật trạng thái",
+          error: "",
+        });
+      }
+      callback({
+        success: true,
+        message: "Trạng thái người dùng đã được cập nhật thành công",
+        data: id,
+      });
+    } catch (err) {
+      callback({
+        success: false,
+        message: "Không thể cập nhật trạng thái người dùng",
+        error: err.message,
+      });
+    }
+  }
+
+  static async toggleRole(id, callback) {
+    
+    if (id === 1 || id === "1") {
+      return callback({
+        success: true,
+        message: "Không thể thay đổi vai trò người dùng đặc biệt",
+        error: "",
+      });
+    }
+    else{try {
+      const result = await this.executeQuery("UPDATE users SET role = NOT role WHERE id = ?", [id]);
+      if (result.affectedRows === 0) {
+        return callback({
+          data: [],
+          message: "Không tìm thấy người dùng để cập nhật vai trò",
+          success: false,
+          error: "",
+        });
+      }
+      callback({
+        data: id,
+        message: "Vai trò người dùng đã được cập nhật thành công",
+        success: true,
+        error: "",
+      });
+    } catch (err) {
+      callback({
+        data: [],
+        message: "Không thể cập nhật vai trò người dùng",
+        success: false,
+        error: err.message,
+      });
+    }}
+    
   }
 
   static async getListWithLimitOffset(limit, offset, callback) {

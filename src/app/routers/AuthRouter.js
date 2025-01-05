@@ -52,6 +52,51 @@ router.post("/login", (req, res) => {
   });
 });
 
+/**
+ * @swagger
+ * /auth/change-password:
+ *   post:
+ *     summary: Đổi mật khẩu người dùng
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               userId:
+ *                 type: integer
+ *                 description: ID người dùng
+ *               oldPassword:
+ *                 type: string
+ *                 description: Mật khẩu cũ
+ *               newPassword:
+ *                 type: string
+ *                 description: Mật khẩu mới
+ *     responses:
+ *       200:
+ *         description: Đổi mật khẩu thành công
+ *       400:
+ *         description: Lỗi dữ liệu đầu vào
+ *       500:
+ *         description: Lỗi máy chủ
+ */
+router.post("/change-password", (req, res) => {
+  const { userId, oldPassword, newPassword } = req.body;
+
+  if (!userId || !oldPassword || !newPassword) {
+    return res.status(400).json({
+      success: false,
+      message: "Thiếu thông tin bắt buộc",
+      error: "Missing fields",
+    });
+  }
+
+  AuthModel.changePassword(userId, oldPassword, newPassword, (result) => {
+    res.status(result.success ? 200 : 500).json(result);
+  });
+});
 
 /**
  * @swagger

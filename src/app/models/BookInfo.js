@@ -40,32 +40,42 @@ class BookInfoModel {
   static async getDetail(id, callback) {
     try {
       const rows = await this.executeQuery(
-        "SELECT * FROM book_info WHERE id = ?",
+        "SELECT * FROM book_info WHERE book_id = ?",
         [id]
       );
+      const countResult = await this.executeQuery(
+        "SELECT COUNT(*) as totalCount FROM book_info WHERE book_id = ?",
+        [id]
+      );
+  
       if (rows.length === 0) {
         return callback({
-          data: {},
+          data: [],
+          totalCount: 0,
           message: "Không tìm thấy thông tin sách",
           success: false,
           error: "",
         });
       }
+  
       callback({
-        data: rows[0],
-        message: "Thông tin thông tin sách đã được lấy thành công",
+        data: rows,
+        totalCount: countResult[0].totalCount,
+        message: "Thông tin sách đã được lấy thành công",
         success: true,
         error: "",
       });
     } catch (err) {
       callback({
-        data: {},
-        message: "Không thể lấy thông tin thông tin sách",
+        data: [],
+        totalCount: 0,
+        message: "Không thể lấy thông tin sách",
         success: false,
         error: err.message,
       });
     }
   }
+  
 
   static async getListWithLimitOffset(limit, offset, callback) {
     try {

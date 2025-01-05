@@ -55,24 +55,41 @@ class OrderModel {
   }
 
   static getById(id, callback) {
-    this.executeQuery(
-      "SELECT * FROM orders WHERE id = ?",
-      [id],
-      "Thông tin đơn hàng đã được lấy thành công",
-      "Không thể lấy thông tin đơn hàng",
-      (response) => {
-        if (response.data.length === 0) {
-          return callback({
-            data: {},
-            message: "Không tìm thấy đơn hàng",
-            success: false,
-            error: "",
-          });
-        }
-        response.data = response.data[0];
-        callback(response);
+    const orderQuery = "SELECT * FROM orders WHERE id = ?";
+    const orderDetailsQuery = `
+      SELECT od.product_id, od.quantity, od.price, p.product_name, p.image
+      FROM order_details od
+      JOIN products p ON od.product_id = p.id
+      WHERE od.order_id = ?
+    `;
+  
+    this.executeQuery(orderQuery, [id], "Thông tin đơn hàng đã được lấy thành công", "Không thể lấy thông tin đơn hàng", (response) => {
+      if (response.data.length === 0) {
+        return callback({
+          data: {},
+          message: "Không tìm thấy đơn hàng",
+          success: false,
+          error: "",
+        });
       }
-    );
+  
+      const orderData = response.data[0];
+  
+      this.executeQuery(orderDetailsQuery, [id], "Chi tiết sản phẩm đã được lấy thành công", "Không thể lấy chi tiết sản phẩm", (productResponse) => {
+        if (!productResponse.success) {
+          return callback(productResponse);
+        }
+  
+        orderData.orderDetails = productResponse.data;
+  
+        callback({
+          data: orderData,
+          message: "Thông tin đơn hàng đã được lấy thành công",
+          success: true,
+          error: "",
+        });
+      });
+    });
   }
 
   static create(newOrder, orderDetails, callback) {
@@ -203,48 +220,124 @@ class OrderModel {
   }
   
 
-  static update(id, updatedOrder, callback) {
-    this.executeQuery(
-      "UPDATE orders SET ? WHERE id = ?",
-      [updatedOrder, id],
-      "Thông tin đơn hàng đã được cập nhật thành công",
-      "Không thể cập nhật thông tin đơn hàng",
-      (response) => {
-        if (response.data.affectedRows === 0) {
+    static update(id, updatedOrder, callback) {
+      this.executeQuery(
+        "UPDATE orders SET ? WHERE id = ?",
+        [updatedOrder, id],
+        "Thông tin đơn hàng đã được cập nhật thành công",
+        "Không thể cập nhật thông tin đơn hàng",
+        (response) => {
+          if (response.data.affectedRows === 0) {
+            return callback({
+              data: [],
+              message: "Không tìm thấy đơn hàng để cập nhật",
+              success: false,
+              error: "",
+            });
+          }
+          response.data = id;
+          callback(response);
+        }
+      );
+    }
+
+    static delete(id, callback) {
+      const queryDeleteOrderDetails = "DELETE FROM order_details WHERE order_id = ?";
+      const queryDeleteOrder = "DELETE FROM orders WHERE id = ?";
+    
+      db.beginTransaction((err) => {
+        if (err) {
           return callback({
-            data: [],
-            message: "Không tìm thấy đơn hàng để cập nhật",
             success: false,
+            message: "Không thể bắt đầu giao dịch",
+            error: err.message,
+          });
+        }
+    
+        // Xóa các chi tiết đơn hàng
+        db.query(queryDeleteOrderDetails, [id], (err) => {
+          if (err) {
+            return db.rollback(() => {
+              callback({
+                success: false,
+                message: "Không thể xóa chi tiết đơn hàng",
+                error: err.message,
+              });
+            });
+          }
+    
+          // Xóa đơn hàng
+          db.query(queryDeleteOrder, [id], (err, result) => {
+            if (err) {
+              return db.rollback(() => {
+                callback({
+                  success: false,
+                  message: "Không thể xóa đơn hàng",
+                  error: err.message,
+                });
+              });
+            }
+    
+            if (result.affectedRows === 0) {
+              return db.rollback(() => {
+                callback({
+                  success: false,
+                  message: "Không tìm thấy đơn hàng để xóa",
+                  error: "",
+                });
+              });
+            }
+    
+            db.commit((err) => {
+              if (err) {
+                return db.rollback(() => {
+                  callback({
+                    success: false,
+                    message: "Không thể hoàn tất giao dịch",
+                    error: err.message,
+                  });
+                });
+              }
+    
+              callback({
+                success: true,
+                message: "Đơn hàng và chi tiết liên quan đã được xóa thành công",
+                data: id,
+              });
+            });
+          });
+        });
+      });
+    }
+    
+    static cancelOrder(orderId, callback) {
+      const query = "UPDATE orders SET delivered = 4 WHERE id = ?";
+    
+      db.query(query, [orderId], (err, result) => {
+        if (err) {
+          return callback({
+            success: false,
+            message: "Không thể hủy đơn hàng",
+            error: err.message,
+          });
+        }
+    
+        if (result.affectedRows === 0) {
+          return callback({
+            success: false,
+            message: "Không tìm thấy đơn hàng để hủy",
             error: "",
           });
         }
-        response.data = id;
-        callback(response);
-      }
-    );
-  }
-
-  static delete(id, callback) {
-    this.executeQuery(
-      "DELETE FROM orders WHERE id = ?",
-      [id],
-      "đơn hàng đã được xóa thành công",
-      "Không thể xóa đơn hàng",
-      (response) => {
-        if (response.data.affectedRows === 0) {
-          return callback({
-            data: [],
-            message: "Không tìm thấy đơn hàng để xóa",
-            success: false,
-            error: "",
-          });
-        }
-        response.data = id;
-        callback(response);
-      }
-    );
-  }
-
+    
+        callback({
+          success: true,
+          message: "Đơn hàng đã được hủy thành công",
+          data: orderId,
+        });
+      });
+    }
+    
   static getListWithLimitOffset(limit, offset, callback) {
     const query = "SELECT * FROM orders LIMIT ? OFFSET ?";
     const countQuery = "SELECT COUNT(*) as totalCount FROM orders";

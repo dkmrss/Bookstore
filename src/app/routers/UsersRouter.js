@@ -210,9 +210,63 @@ router.put("/update/:id", upload.single("avatar"), (req, res) => {
 
 /**
  * @swagger
+ * /users/toggle-status/{id}:
+ *   put:
+ *     summary: Thay đổi trạng thái hoạt động của người dùng
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID của người dùng
+ *     responses:
+ *       200:
+ *         description: Trạng thái người dùng đã được cập nhật
+ *       500:
+ *         description: Lỗi máy chủ
+ */
+router.put("/toggle-status/:id", (req, res) => {
+  const userId = req.params.id;
+  UserModel.toggleStatus(userId, (result) => {
+    res.status(result.success ? 200 : 500).json(result);
+  });
+});
+
+
+/**
+ * @swagger
+ * /users/toggle-role/{id}:
+ *   put:
+ *     summary: Thay đổi vai trò của người dùng
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID của người dùng
+ *     responses:
+ *       200:
+ *         description: Trạng thái người dùng đã được cập nhật
+ *       500:
+ *         description: Lỗi máy chủ
+ */
+router.put("/toggle-role/:id", (req, res) => {
+  const userId = req.params.id;
+  UserModel.toggleRole(userId, (result) => {
+    res.status(result.success ? 200 : 500).json(result);
+  });
+});
+
+
+/**
+ * @swagger
  * /users/delete/{id}:
  *   delete:
- *     summary: Xóa một người dùng
+ *     summary: Xóa một người dùng cùng các đơn hàng liên quan
  *     tags: [Users]
  *     parameters:
  *       - in: path
@@ -223,7 +277,7 @@ router.put("/update/:id", upload.single("avatar"), (req, res) => {
  *         description: ID của người dùng cần xóa
  *     responses:
  *       200:
- *         description: Xóa người dùng thành công
+ *         description: Xóa người dùng và các đơn hàng thành công
  *       500:
  *         description: Lỗi máy chủ
  */

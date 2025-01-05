@@ -141,37 +141,54 @@ class UserCommentModel {
   }
 
   static getListWithLimitOffset(limit, offset, callback) {
-    const query = "SELECT * FROM comment LIMIT ? OFFSET ?";
-    const countQuery = "SELECT COUNT(*) as totalCount FROM comment";
-    db.query(query, [limit, offset], (err, rows) => {
+  const query = `
+    SELECT 
+      comment.*, 
+      users.name AS user_name, 
+      users.avatar AS user_avatar 
+    FROM 
+      comment
+    JOIN 
+      users 
+    ON 
+      comment.user_id = users.id
+    LIMIT ? OFFSET ?`;
+
+  const countQuery = "SELECT COUNT(*) as totalCount FROM comment";
+
+  db.query(query, [limit, offset], (err, rows) => {
+    if (err) {
+      return callback({
+        data: [],
+        message: "Không thể lấy danh sách bình luận của người dùng",
+        success: false,
+        error: err.message,
+      });
+    }
+
+    db.query(countQuery, [], (err, countResult) => {
       if (err) {
         return callback({
           data: [],
-          message: "Không thể lấy danh sách bình luận của người dùng",
+          message: "Không thể đếm số lượng bình luận của người dùng",
           success: false,
           error: err.message,
         });
       }
-      db.query(countQuery, [], (err, countResult) => {
-        if (err) {
-          return callback({
-            data: [],
-            message: "Không thể đếm số lượng bình luận của người dùng",
-            success: false,
-            error: err.message,
-          });
-        }
-        const totalCount = countResult[0].totalCount;
-        callback({
-          data: rows,
-          message: "Danh sách bình luận của người dùng đã được lấy thành công",
-          success: true,
-          error: "",
-          totalCount: totalCount,
-        });
+
+      const totalCount = countResult[0].totalCount;
+
+      callback({
+        data: rows,
+        message: "Danh sách bình luận của người dùng đã được lấy thành công",
+        success: true,
+        error: "",
+        totalCount: totalCount,
       });
     });
-  }
+  });
+}
+
 
   static getListWithLimitOffsetByField(field, value, limit, offset, callback) {
     const query = `SELECT * FROM comment WHERE ${field} = ? LIMIT ? OFFSET ?`;
@@ -221,14 +238,39 @@ class UserCommentModel {
         error: "Invalid input",
       });
     }
-
+  
     const whereClauses = fields.map((field) => `${field} = ?`).join(" AND ");
-    const query = `SELECT * FROM comment WHERE ${whereClauses} LIMIT ? OFFSET ?`;
-    const countQuery = `SELECT COUNT(*) as totalCount FROM comment WHERE ${whereClauses}`;
-
+    const query = `
+      SELECT 
+        c.*, 
+        u.name AS user_name, 
+        u.avatar AS user_avatar 
+      FROM 
+        comment c
+      JOIN 
+        users u 
+      ON 
+        c.user_id = u.id
+      WHERE 
+        ${whereClauses} 
+      LIMIT ? OFFSET ?
+    `;
+    const countQuery = `
+      SELECT 
+        COUNT(*) as totalCount 
+      FROM 
+        comment c
+      JOIN 
+        users u 
+      ON 
+        c.user_id = u.id
+      WHERE 
+        ${whereClauses}
+    `;
+  
     const queryParams = [...values, limit, offset];
     const countParams = values;
-
+  
     db.query(query, queryParams, (err, rows) => {
       if (err) {
         return callback({
@@ -258,6 +300,7 @@ class UserCommentModel {
       });
     });
   }
+  
 }
 
 module.exports = UserCommentModel;

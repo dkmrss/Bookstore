@@ -319,9 +319,9 @@ class NewModel {
     callback
   ) {
     try {
-      const query = `SELECT * FROM news WHERE ${field} = ? LIMIT ? OFFSET ?`;
+      const query = `SELECT * FROM news WHERE ${field} = ?  ORDER BY created_at DESC  LIMIT ? OFFSET ? `;
       const rows = await this.executeQuery(query, [value, limit, offset]);
-      const countQuery = `SELECT COUNT(*) as totalCount FROM news WHERE ${field} = ?`;
+      const countQuery = `SELECT COUNT(*) as totalCount FROM news WHERE ${field} = ? ORDER BY created_at DESC `;
       const countResult = await this.executeQuery(countQuery, [value]);
       callback({
         data: rows,
@@ -358,7 +358,7 @@ class NewModel {
     }
 
     const whereClauses = fields.map((field) => `${field} = ?`).join(" AND ");
-    const query = `SELECT * FROM news WHERE ${whereClauses} LIMIT ? OFFSET ?`;
+    const query = `SELECT * FROM news WHERE ${whereClauses} ORDER BY created_at DESC  LIMIT ? OFFSET ?`;
     const countQuery = `SELECT COUNT(*) as totalCount FROM news WHERE ${whereClauses}`;
 
     const queryParams = [...values, limit, offset];

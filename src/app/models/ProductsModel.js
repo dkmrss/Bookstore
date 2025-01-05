@@ -42,7 +42,10 @@ class ProductsModel {
 
   static async getById(id, callback) {
     try {
-      const rows = await this.executeQuery("SELECT * FROM products WHERE id = ?", [id]);
+      const rows = await this.executeQuery(
+        "SELECT * FROM products WHERE id = ?",
+        [id]
+      );
       if (rows.length === 0) {
         return callback({
           data: {},
@@ -82,7 +85,10 @@ class ProductsModel {
       });
     }
     try {
-      const result = await this.executeQuery("INSERT INTO products SET ?", newProduct);
+      const result = await this.executeQuery(
+        "INSERT INTO products SET ?",
+        newProduct
+      );
       callback({
         data: result.insertId,
         message: "Sản phẩm đã được thêm thành công",
@@ -105,10 +111,18 @@ class ProductsModel {
 
   static async update(id, updatedProduct, callback) {
     try {
-      const rows = await this.executeQuery("SELECT image FROM products WHERE id = ?", [id]);
+      const rows = await this.executeQuery(
+        "SELECT image FROM products WHERE id = ?",
+        [id]
+      );
       if (rows.length === 0) {
         if (updatedProduct.image) {
-          const imagePath = path.join(__dirname, "..", "..", updatedProduct.image);
+          const imagePath = path.join(
+            __dirname,
+            "..",
+            "..",
+            updatedProduct.image
+          );
           await this.handleImageDeletion(imagePath);
         }
         return callback({
@@ -123,10 +137,18 @@ class ProductsModel {
         updatedProduct.image = rows[0].image;
       }
 
-      const result = await this.executeQuery("UPDATE products SET ? WHERE id = ?", [updatedProduct, id]);
+      const result = await this.executeQuery(
+        "UPDATE products SET ? WHERE id = ?",
+        [updatedProduct, id]
+      );
       if (result.affectedRows === 0) {
         if (updatedProduct.image) {
-          const imagePath = path.join(__dirname, "..", "..", updatedProduct.image);
+          const imagePath = path.join(
+            __dirname,
+            "..",
+            "..",
+            updatedProduct.image
+          );
           await this.handleImageDeletion(imagePath);
         }
         return callback({
@@ -144,7 +166,12 @@ class ProductsModel {
       });
     } catch (err) {
       if (updatedProduct.image) {
-        const imagePath = path.join(__dirname, "..", "..", updatedProduct.image);
+        const imagePath = path.join(
+          __dirname,
+          "..",
+          "..",
+          updatedProduct.image
+        );
         await this.handleImageDeletion(imagePath);
       }
       callback({
@@ -158,7 +185,10 @@ class ProductsModel {
 
   static async delete(id, callback) {
     try {
-      const result = await this.executeQuery("DELETE FROM products WHERE id = ?", [id]);
+      const result = await this.executeQuery(
+        "DELETE FROM products WHERE id = ?",
+        [id]
+      );
       if (result.affectedRows === 0) {
         return callback({
           data: [],
@@ -183,10 +213,67 @@ class ProductsModel {
     }
   }
 
-  static async getListWithLimitOffset(limit, offset, callback) {
+  static async getListWithLimitOffset(limit, offset, filters, sort, callback) {
     try {
-      const rows = await this.executeQuery("SELECT * FROM products LIMIT ? OFFSET ?", [limit, offset]);
-      const countResult = await this.executeQuery("SELECT COUNT(*) as totalCount FROM products");
+      let query = "SELECT * FROM products";
+      let queryCount = "SELECT COUNT(*) as totalCount FROM products";
+      const queryParams = [];
+
+      // Xử lý các bộ lọc
+      if (filters) {
+        const conditions = [];
+        if (filters.category) {
+          conditions.push("category_id = ?");
+          queryParams.push(filters.category);
+        }
+        if (filters.name) {
+          conditions.push("product_name LIKE ?");
+          queryParams.push(`%${filters.name}%`);
+        }
+        if (filters.priceMin) {
+          conditions.push("price >= ?");
+          queryParams.push(filters.priceMin);
+        }
+        if (filters.priceMax) {
+          conditions.push("price <= ?");
+          queryParams.push(filters.priceMax);
+        }
+        if (filters.status !== undefined) {
+          conditions.push("status = ?");
+          queryParams.push(filters.status);
+        }
+        if (filters.sale !== undefined) {
+          conditions.push("sale = ?");
+          queryParams.push(filters.sale);
+        }
+        if (filters.trash !== undefined) {
+          conditions.push("trash = ?");
+          queryParams.push(filters.trash);
+        }
+        if (conditions.length > 0) {
+          query += " WHERE " + conditions.join(" AND ");
+          queryCount += " WHERE " + conditions.join(" AND ");
+        }
+      }
+
+      // Xử lý sắp xếp
+      if (sort) {
+        query += ` ORDER BY ${sort.column} ${sort.order}`;
+       
+      } else {
+        query += " ORDER BY category_id ASC, product_name ASC"; // Sắp xếp mặc định
+      }
+
+      // Thêm LIMIT và OFFSET
+      query += " LIMIT ? OFFSET ?";
+      queryParams.push(limit, offset);
+
+      // Thực thi truy vấn
+      const rows = await this.executeQuery(query, queryParams);
+      const countResult = await this.executeQuery(
+        queryCount,queryParams
+      );
+
       callback({
         data: rows,
         message: "Danh sách sản phẩm đã được lấy thành công",
@@ -201,6 +288,82 @@ class ProductsModel {
         success: false,
         error: err.message,
         totalCount: 0,
+      });
+    }
+  }
+
+  // Hàm chỉnh sửa trạng thái `status`
+  static async toggleStatus(id, callback) {
+    try {
+      const product = await this.executeQuery(
+        "SELECT status FROM products WHERE id = ?",
+        [id]
+      );
+      if (product.length === 0) {
+        return callback({
+          data: [],
+          message: "Không tìm thấy sản phẩm",
+          success: false,
+          error: "",
+        });
+      }
+
+      const newStatus = product[0].status === 0 ? 1 : 0;
+      await this.executeQuery("UPDATE products SET status = ? WHERE id = ?", [
+        newStatus,
+        id,
+      ]);
+
+      callback({
+        data: { id, status: newStatus },
+        message: "Trạng thái sản phẩm đã được cập nhật thành công",
+        success: true,
+        error: "",
+      });
+    } catch (err) {
+      callback({
+        data: [],
+        message: "Không thể cập nhật trạng thái sản phẩm",
+        success: false,
+        error: err.message,
+      });
+    }
+  }
+
+  // Hàm chỉnh sửa trạng thái `trash`
+  static async toggleTrash(id, callback) {
+    try {
+      const product = await this.executeQuery(
+        "SELECT trash FROM products WHERE id = ?",
+        [id]
+      );
+      if (product.length === 0) {
+        return callback({
+          data: [],
+          message: "Không tìm thấy sản phẩm",
+          success: false,
+          error: "",
+        });
+      }
+
+      const newTrash = product[0].trash === 0 ? 1 : 0;
+      await this.executeQuery("UPDATE products SET trash = ? WHERE id = ?", [
+        newTrash,
+        id,
+      ]);
+
+      callback({
+        data: { id, trash: newTrash },
+        message: "Trạng thái thùng rác đã được cập nhật thành công",
+        success: true,
+        error: "",
+      });
+    } catch (err) {
+      callback({
+        data: [],
+        message: "Không thể cập nhật trạng thái thùng rác",
+        success: false,
+        error: err.message,
       });
     }
   }
@@ -414,7 +577,30 @@ class ProductsModel {
 
   static async search(searchTerm, limit, offset, callback) {
     try {
-      const likeTerm = `%${searchTerm}%`;
+      const lowerCaseSearchTerm = searchTerm.toLowerCase();
+      const likeTerm = `%${lowerCaseSearchTerm}%`;
+
+      // Kiểm tra xem từ khóa đã tồn tại trong bảng search_logs chưa
+      const existingLog = await this.executeQuery(
+        "SELECT * FROM search_keywords WHERE keyword = ?",
+        [lowerCaseSearchTerm]
+      );
+      //keyword, created_at, search_keyword
+      if (existingLog.length > 0) {
+        // Nếu từ khóa đã tồn tại, tăng time_search
+        await this.executeQuery(
+          "UPDATE search_keywords SET time_search = time_search + 1 WHERE keyword = ?",
+          [lowerCaseSearchTerm]
+        );
+      } else {
+        // Nếu từ khóa chưa tồn tại, thêm mới vào bảng search_logs
+        await this.executeQuery(
+          "INSERT INTO search_keywords (keyword, time_search, created_at) VALUES (?, 1, NOW())",
+          [lowerCaseSearchTerm]
+        );
+      }
+
+      // Thực hiện tìm kiếm sản phẩm
       const rows = await this.executeQuery(
         "SELECT * FROM products WHERE trash=0 AND status=0 AND (product_name LIKE ? OR publisher LIKE ? OR author LIKE ?) LIMIT ? OFFSET ?",
         [likeTerm, likeTerm, likeTerm, limit, offset]
@@ -423,6 +609,7 @@ class ProductsModel {
         "SELECT COUNT(*) as totalCount FROM products WHERE trash=0 AND status=0 AND (product_name LIKE ? OR publisher LIKE ? OR author LIKE ?)",
         [likeTerm, likeTerm, likeTerm]
       );
+
       callback({
         data: rows,
         message: "Kết quả tìm kiếm đã được lấy thành công",
@@ -434,6 +621,72 @@ class ProductsModel {
       callback({
         data: [],
         message: "Không thể tìm kiếm sản phẩm",
+        success: false,
+        error: err.message,
+        totalCount: 0,
+      });
+    }
+  }
+
+  static async getProductsByTopKeywords(
+    keywordLimit,
+    productLimit,
+    offset,
+    callback
+  ) {
+    try {
+      // Lấy top từ khóa tìm kiếm nhiều nhất
+      const topKeywords = await this.executeQuery(
+        "SELECT keyword FROM search_keywords ORDER BY time_search DESC LIMIT ?",
+        [keywordLimit]
+      );
+
+      if (topKeywords.length === 0) {
+        return callback({
+          data: [],
+          message: "Không có từ khóa tìm kiếm",
+          success: true,
+          error: "",
+        });
+      }
+
+      // Xây dựng điều kiện tìm kiếm từ các từ khóa
+      const searchConditions = topKeywords
+        .map(() => "(product_name LIKE ? OR publisher LIKE ? OR author LIKE ?)")
+        .join(" OR ");
+      const searchParams = topKeywords.flatMap((keyword) => [
+        `%${keyword.keyword}%`,
+        `%${keyword.keyword}%`,
+        `%${keyword.keyword}%`,
+      ]);
+
+      // Lấy danh sách sản phẩm
+      const products = await this.executeQuery(
+        `SELECT * FROM products 
+         WHERE trash=0 AND status=0 AND (${searchConditions}) 
+         LIMIT ? OFFSET ?`,
+        [...searchParams, productLimit, offset]
+      );
+
+      // Đếm tổng số sản phẩm liên quan đến từ khóa
+      const countResult = await this.executeQuery(
+        `SELECT COUNT(*) as totalCount 
+         FROM products 
+         WHERE trash=0 AND status=0 AND (${searchConditions})`,
+        searchParams
+      );
+
+      callback({
+        data: products,
+        message: "Danh sách sản phẩm liên quan đến từ khóa được lấy thành công",
+        success: true,
+        error: "",
+        totalCount: countResult[0].totalCount,
+      });
+    } catch (err) {
+      callback({
+        data: [],
+        message: "Không thể lấy sản phẩm liên quan đến từ khóa",
         success: false,
         error: err.message,
         totalCount: 0,
