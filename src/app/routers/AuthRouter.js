@@ -215,4 +215,82 @@ router.post("/reset-password", (req, res) => {
   });
 });
 
+/**
+ * @swagger
+ * /auth/activate:
+ *   post:
+ *     summary: Kích hoạt tài khoản
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: Mã kích hoạt từ email
+ *     responses:
+ *       200:
+ *         description: Tài khoản đã được kích hoạt thành công
+ *       400:
+ *         description: Yêu cầu không hợp lệ hoặc mã kích hoạt không đúng
+ *       500:
+ *         description: Lỗi máy chủ
+ */
+router.post("/activate", (req, res) => {
+  const { token } = req.body;
+
+  if (!token) {
+    return res.status(400).json({
+      success: false,
+      message: "Thiếu mã kích hoạt.",
+    });
+  }
+
+  AuthModel.activateAccount(token, (result) => {
+    res.status(result.success ? 200 : 400).json(result);
+  });
+});
+
+/**
+ * @swagger
+ * /auth/reactive:
+ *   post:
+ *     summary: Gửi lại mã kích hoạt tài khoản
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Email tài khoản
+ *     responses:
+ *       200:
+ *         description: Mã kích hoạt đã được gửi lại
+ *       400:
+ *         description: Yêu cầu không hợp lệ
+ *       500:
+ *         description: Lỗi máy chủ
+ */
+router.post("/reactive", (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({
+      success: false,
+      message: "Email là trường bắt buộc",
+    });
+  }
+
+  AuthModel.reActive(email, (result) => {
+    res.status(result.success ? 200 : 500).json(result);
+  });
+});
+
 module.exports = router;

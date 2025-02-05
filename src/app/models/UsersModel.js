@@ -3,6 +3,8 @@ const userSchema = require("../schemas/UsersSchema");
 const fs = require('fs');
 const path = require("path");
 const md5 = require("md5");
+const nodemailer = require("nodemailer");
+const jwt = require("jsonwebtoken");
 class UserModel {
   static async executeQuery(query, params = []) {
     return new Promise((resolve, reject) => {
@@ -14,6 +16,30 @@ class UserModel {
         }
       });
     });
+  }
+
+  static transporter = nodemailer.createTransport({
+    service: "Gmail",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASSWORD,
+    },
+  });
+
+  static async sendActivationEmail(email, token) {
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "Kích hoạt tài khoản của bạn",
+      text: `Chào bạn, vui lòng sử dụng mã kích hoạt sau để kích hoạt tài khoản của bạn: ${token}.`,
+    };
+
+    try {
+      await this.transporter.sendMail(mailOptions);
+      console.log("Activation email sent successfully");
+    } catch (err) {
+      console.error("Error sending activation email:", err.message);
+    }
   }
 
   static async handleImageDeletion(imagePath) {
@@ -83,24 +109,58 @@ class UserModel {
     }
   }
 
+  // static async create(newUser, callback) {
+  //   const { email, password, name, phone, address, avatar } = newUser;
+  //   const { error } = userSchema.validate(newUser);
+  //   if (error) {
+  //     return this.handleErrorWithImageDeletion(error, avatar, "Dữ liệu không hợp lệ", callback);
+  //   }
+  
+  //   try {
+  //     // Kiểm tra email đã tồn tại
+  //     const existingUsers = await this.executeQuery("SELECT * FROM users WHERE email = ?", [email]);
+  //     if (existingUsers.length > 0) {
+  //       return this.handleErrorWithImageDeletion(new Error("Email đã tồn tại"), avatar, "Email đã tồn tại", callback);
+  //     }
+  
+  //     // Mã hóa mật khẩu bằng MD5
+  //     const hashedPassword = md5(password);
+  
+  //     // Thêm người dùng mới với mật khẩu đã mã hóa
+  //     const result = await this.executeQuery("INSERT INTO users SET ?", {
+  //       email,
+  //       password: hashedPassword,
+  //       name,
+  //       phone,
+  //       address,
+  //       avatar,
+  //     });
+  
+  //     callback({
+  //       data: result.insertId,
+  //       message: "Người dùng đã được thêm thành công",
+  //       success: true,
+  //       error: "",
+  //     });
+  //   } catch (err) {
+  //     return this.handleErrorWithImageDeletion(err, avatar, "Không thể thêm người dùng", callback);
+  //   }
+  // }
+
   static async create(newUser, callback) {
     const { email, password, name, phone, address, avatar } = newUser;
     const { error } = userSchema.validate(newUser);
     if (error) {
       return this.handleErrorWithImageDeletion(error, avatar, "Dữ liệu không hợp lệ", callback);
     }
-  
+
     try {
-      // Kiểm tra email đã tồn tại
       const existingUsers = await this.executeQuery("SELECT * FROM users WHERE email = ?", [email]);
       if (existingUsers.length > 0) {
         return this.handleErrorWithImageDeletion(new Error("Email đã tồn tại"), avatar, "Email đã tồn tại", callback);
       }
-  
-      // Mã hóa mật khẩu bằng MD5
+
       const hashedPassword = md5(password);
-  
-      // Thêm người dùng mới với mật khẩu đã mã hóa
       const result = await this.executeQuery("INSERT INTO users SET ?", {
         email,
         password: hashedPassword,
@@ -108,11 +168,18 @@ class UserModel {
         phone,
         address,
         avatar,
+        status: 1, // Đặt trạng thái ban đầu là chưa kích hoạt
       });
-  
+
+      // Tạo mã kích hoạt dưới dạng JWT
+      const activationToken = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: "1h" });
+
+      // Gửi email kích hoạt
+      await this.sendActivationEmail(email, activationToken);
+
       callback({
         data: result.insertId,
-        message: "Người dùng đã được thêm thành công",
+        message: "Người dùng đã được thêm thành công. Email kích hoạt đã được gửi.",
         success: true,
         error: "",
       });
@@ -120,6 +187,7 @@ class UserModel {
       return this.handleErrorWithImageDeletion(err, avatar, "Không thể thêm người dùng", callback);
     }
   }
+
 
   static async update(id, updatedUser, callback) {
     try {

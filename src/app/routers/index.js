@@ -7,9 +7,11 @@ const BannerRouter = require("./BannerRouter");
 const NewRouter = require("./NewRouter");
 const BookInfoRouter = require("./BookInfoRouter");
 const CommentRouter = require("./UserCommentRouter");
+const RatingRouter = require("./RatingRouter");
 const OrderRouter = require("./OrderRouter");
 const ProductsRouter = require("./ProductsRouter");
 const SearchKeyRouter = require("./SearchKeyRouter");
+const StatisticsRouter = require("./StatisticsRouter");
 const router = express.Router();
 
 // Route cho các ví dụ
@@ -41,11 +43,16 @@ router.use("/bookInfo", BookInfoRouter);
 // Route cho bình luận
 router.use("/user-comment", CommentRouter);
 
+// Route cho đánh giá
+router.use("/rating", RatingRouter);
+
 // Route cho đơn hàng
 router.use("/orders", OrderRouter);
 
 // Router liên quan từ khóa tìm kiếm
 router.use("/search", SearchKeyRouter)
 
+// Router tính toán
+router.use("/statistics", StatisticsRouter)
 
 module.exports = router;
