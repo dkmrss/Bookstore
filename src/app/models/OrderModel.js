@@ -310,6 +310,38 @@ class OrderModel {
       });
     }
     
+    static async updatePayment(orderId, payment, callback) {
+      try {
+          const query = "UPDATE orders SET payment = ? WHERE id = ?";
+          const result = await new Promise((resolve, reject) => {
+              db.query(query, [payment, orderId], (err, res) => {
+                  if (err) reject(err);
+                  else resolve(res);
+              });
+          });
+  
+          if (result.affectedRows === 0) {
+              return callback({
+                  success: false,
+                  message: "Không tìm thấy đơn hàng để cập nhật payment",
+                  error: "",
+              });
+          }
+  
+          callback({
+              success: true,
+              message: "Cập nhật payment thành công",
+              data: { orderId, payment },
+          });
+      } catch (err) {
+          callback({
+              success: false,
+              message: "Lỗi khi cập nhật payment",
+              error: err.message,
+          });
+      }
+  }
+
     static cancelOrder(orderId, callback) {
       const query = "UPDATE orders SET delivered = 4 WHERE id = ?";
     
